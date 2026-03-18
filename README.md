@@ -45,19 +45,19 @@ yarn dev
 yarn build && yarn start
 ```
 
-The server runs on `http://localhost:3000` by default.
+The server runs on `http://localhost:3089` by default.
 
 ## Configuration
 
 All options are set via environment variables in `.env`:
 
-| Variable | Default | Description |
-|---|---|---|
-| `PORT` | `3000` | Server port |
-| `TESSERACT_LANG` | `ita+eng` | OCR language(s). Combine with `+` (e.g. `ita+eng+fra`). See [available languages](https://tesseract-ocr.github.io/tessdoc/Data-Files). |
-| `OUTPUT_DIR` | `./output` | Directory for local Markdown output files |
-| `NOTION_TOKEN` | — | Notion integration token (from [notion.so/my-integrations](https://www.notion.so/my-integrations)) |
-| `NOTION_DATABASE_ID` | — | ID of the target Notion database |
+| Variable             | Default    | Description                                                                                                                            |
+|----------------------|------------|----------------------------------------------------------------------------------------------------------------------------------------|
+| `PORT`               | `3089`     | Server port                                                                                                                            |
+| `TESSERACT_LANG`     | `ita+eng`  | OCR language(s). Combine with `+` (e.g. `ita+eng+fra`). See [available languages](https://tesseract-ocr.github.io/tessdoc/Data-Files). |
+| `OUTPUT_DIR`         | `./output` | Directory for local Markdown output files                                                                                              |
+| `NOTION_TOKEN`       | —          | Notion integration token (from [notion.so/my-integrations](https://www.notion.so/my-integrations))                                     |
+| `NOTION_DATABASE_ID` | —          | ID of the target Notion database                                                                                                       |
 
 ### Adding Tesseract language models
 
@@ -80,11 +80,11 @@ Extracts text from uploaded images and saves to the selected destinations.
 
 **Request** (multipart/form-data):
 
-| Field | Type | Description |
-|---|---|---|
-| `images` | File[] | Images to process (max 20, max 20 MB each) |
-| `title` | string (optional) | Note title. Defaults to `OCR – {date}` |
-| `outputs` | string \| string[] | Destinations: `file`, `notion`, `notes` |
+| Field     | Type               | Description                                |
+|-----------|--------------------|--------------------------------------------|
+| `images`  | File[]             | Images to process (max 20, max 20 MB each) |
+| `title`   | string (optional)  | Note title. Defaults to `OCR – {date}`     |
+| `outputs` | string \| string[] | Destinations: `file`, `notion`, `notes`    |
 
 **Response** (JSON):
 
@@ -113,7 +113,9 @@ ocr-service/
 │   ├── server.ts          # Express server and API routes
 │   ├── ocr.ts             # Tesseract OCR wrapper
 │   ├── public/
-│   │   └── index.html     # Web UI
+│   │   ├── index.html     # Markup
+│   │   ├── style.css      # Styles
+│   │   └── app.js         # UI logic
 │   └── outputs/
 │       ├── file.ts        # Local Markdown output
 │       ├── notion.ts      # Notion API output
@@ -128,8 +130,8 @@ ocr-service/
 
 ## Scripts
 
-| Command | Description |
-|---|---|
-| `yarn dev` | Start in watch mode (TypeScript, no build step) |
-| `yarn build` | Compile TypeScript to `dist/` |
-| `yarn start` | Run compiled production build |
+| Command      | Description                                     |
+|--------------|-------------------------------------------------|
+| `yarn dev`   | Start in watch mode (TypeScript, no build step) |
+| `yarn build` | Compile TypeScript to `dist/`                   |
+| `yarn start` | Run compiled production build                   |

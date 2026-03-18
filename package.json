@@ -2,7 +2,7 @@
   "name": "ocr-service",
   "version": "1.0.0",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
+    "dev": "tsx watch src/server.ts --port 3089",
     "build": "tsc",
     "start": "node dist/server.js"
   },
@@ -10,7 +10,7 @@
     "dotenv": "^16.4.5",
     "tesseract.js": "^5.1.0",
     "express": "^4.19.2",
-    "multer": "^1.4.5-lts.1"
+    "multer": "2.1.1"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",

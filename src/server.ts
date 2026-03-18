@@ -9,7 +9,7 @@ import { saveToNotion } from "./outputs/notion.js";
 import { saveToAppleNotes } from "./outputs/notes.js";
 
 const app = express();
-const PORT = Number(process.env.PORT ?? 3000);
+const PORT = Number(process.env.PORT ?? 3089);
 
 // ── Multer (temp upload storage) ──────────────────────────────────────────────
 const upload = multer({
@@ -27,7 +27,7 @@ app.use(express.static(path.join(__dirname, "public")));
 // ── Upload + extract route ─────────────────────────────────────────────────────
 app.post(
   "/extract",
-  upload.array("images", 20),
+  upload.array("images", 20) as unknown as express.RequestHandler,
   async (req: Request, res: Response) => {
     const files = req.files as Express.Multer.File[];
 
@@ -100,5 +100,4 @@ app.post(
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`\n🔍 OCR Service running at http://localhost:${PORT}`);
-  console.log(`   Open this in your browser (or phone, on the same Wi-Fi)\n`);
 });
