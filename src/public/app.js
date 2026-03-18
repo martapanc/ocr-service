@@ -52,21 +52,40 @@ function addFiles(newFiles) {
   submitBtn.disabled = selectedFiles.length === 0;
 }
 
+let dragSrcIndex = null;
+
 function renderPreviews() {
   previewGrid.innerHTML = '';
   selectedFiles.forEach((file, i) => {
     const url = URL.createObjectURL(file);
     const div = document.createElement('div');
     div.className = 'thumb';
-    div.innerHTML = `<img src="${url}" alt="${file.name}" /><button class="remove" data-i="${i}">✕</button>`;
-    previewGrid.appendChild(div);
-  });
-  previewGrid.querySelectorAll('.remove').forEach(btn => {
-    btn.addEventListener('click', () => {
-      selectedFiles.splice(Number(btn.dataset.i), 1);
+    div.draggable = true;
+    div.innerHTML = `<img src="${url}" alt="${file.name}" /><button class="remove" data-i="${i}">✕</button><span class="thumb-name">${file.name}</span>`;
+
+    div.addEventListener('dragstart', () => {
+      dragSrcIndex = i;
+      div.classList.add('dragging');
+    });
+    div.addEventListener('dragend', () => div.classList.remove('dragging'));
+    div.addEventListener('dragover', e => { e.preventDefault(); div.classList.add('drag-target'); });
+    div.addEventListener('dragleave', () => div.classList.remove('drag-target'));
+    div.addEventListener('drop', e => {
+      e.preventDefault();
+      div.classList.remove('drag-target');
+      if (dragSrcIndex === null || dragSrcIndex === i) return;
+      const [moved] = selectedFiles.splice(dragSrcIndex, 1);
+      selectedFiles.splice(i, 0, moved);
+      renderPreviews();
+    });
+
+    div.querySelector('.remove').addEventListener('click', () => {
+      selectedFiles.splice(i, 1);
       renderPreviews();
       submitBtn.disabled = selectedFiles.length === 0;
     });
+
+    previewGrid.appendChild(div);
   });
 }
 
