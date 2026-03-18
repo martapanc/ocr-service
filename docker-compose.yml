@@ -1,0 +1,10 @@
+services:
+  ocr-service:
+    build: .
+    ports:
+      - "3089:3089"
+    env_file:
+      - .env
+    volumes:
+      # Persist extracted files on the host
+      - ./output:/app/output

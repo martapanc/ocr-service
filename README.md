@@ -14,10 +14,9 @@ A web-based OCR (Optical Character Recognition) service that extracts text from 
 
 ## Requirements
 
-- Node.js 18+
-- Yarn or npm
+- Node.js 18+ and Yarn, **or** Docker
 
-> **Note:** Apple Notes integration is macOS-only.
+> **Note:** Apple Notes integration is macOS-only and not available inside Docker.
 
 ## Setup
 
@@ -46,6 +45,38 @@ yarn build && yarn start
 ```
 
 The server runs on `http://localhost:3089` by default.
+
+## Docker
+
+**1. Configure environment**
+
+```bash
+cp .env.example .env
+# edit .env with your NOTION_TOKEN etc.
+```
+
+**2. Build and run**
+
+```bash
+docker compose up --build
+```
+
+The app will be available at `http://localhost:3089`. The `output/` directory is mounted as a volume so extracted Markdown files persist on the host. All variables from `.env` are passed into the container automatically via `env_file`.
+
+**Without Compose:**
+
+```bash
+docker build -t ocr-service .
+docker run -p 3089:3089 --env-file .env -v $(pwd)/output:/app/output ocr-service
+```
+
+**Stopping:**
+
+```bash
+docker compose down
+```
+
+> Apple Notes output requires macOS + AppleScript and is not supported inside Docker.
 
 ## Configuration
 
@@ -125,6 +156,8 @@ ocr-service/
 ├── eng.traineddata        # Tesseract English language model
 ├── ita.traineddata        # Tesseract Italian language model
 ├── .env.example           # Environment variable template
+├── Dockerfile
+├── docker-compose.yml
 └── tsconfig.json
 ```
 
