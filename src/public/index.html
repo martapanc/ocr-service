@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OCR Service</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0f11;
+      --surface: #1a1a1e;
+      --border: #2e2e36;
+      --accent: #7c6aff;
+      --accent-dim: #3d3480;
+      --text: #e8e8f0;
+      --muted: #888899;
+      --success: #4ade80;
+      --error: #f87171;
+      --radius: 12px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px 48px;
+      gap: 24px;
+    }
+
+    header {
+      text-align: center;
+      padding-top: 8px;
+    }
+    header h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; }
+    header p  { color: var(--muted); font-size: 0.9rem; margin-top: 4px; }
+
+    .card {
+      width: 100%;
+      max-width: 540px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    label { font-size: 0.8rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+    input[type="text"] {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 1rem;
+      padding: 10px 12px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input[type="text"]:focus { border-color: var(--accent); }
+
+    /* Drop zone */
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 32px 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+    }
+    .drop-zone.drag-over {
+      border-color: var(--accent);
+      background: rgba(124, 106, 255, 0.06);
+    }
+    .drop-zone input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+    .drop-zone .icon { font-size: 2.4rem; }
+    .drop-zone p { color: var(--muted); font-size: 0.9rem; margin-top: 6px; }
+    .drop-zone strong { color: var(--text); }
+
+    /* Preview grid */
+    #preview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+      gap: 8px;
+    }
+    .thumb {
+      aspect-ratio: 1;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      position: relative;
+    }
+    .thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .thumb .remove {
+      position: absolute; top: 2px; right: 2px;
+      background: rgba(0,0,0,0.65); color: #fff;
+      border: none; border-radius: 50%;
+      width: 20px; height: 20px; cursor: pointer;
+      font-size: 0.65rem; display: flex; align-items: center; justify-content: center;
+    }
+
+    /* Output checkboxes */
+    .outputs { display: flex; gap: 8px; flex-wrap: wrap; }
+    .output-chip {
+      display: flex; align-items: center; gap: 6px;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 999px; padding: 6px 12px;
+      cursor: pointer; font-size: 0.85rem;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .output-chip input { display: none; }
+    .output-chip.selected {
+      border-color: var(--accent);
+      background: var(--accent-dim);
+      color: #fff;
+    }
+
+    button[type="submit"] {
+      width: 100%; padding: 14px;
+      background: var(--accent);
+      color: #fff; font-size: 1rem; font-weight: 600;
+      border: none; border-radius: 8px; cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    button[type="submit"]:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* Result area */
+    #result { display: none; width: 100%; max-width: 540px; }
+    #result.visible { display: block; }
+
+    .result-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+    .result-card h2 { font-size: 1rem; margin-bottom: 12px; }
+    .destination-status { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+    .status-row { display: flex; align-items: center; gap: 8px; font-size: 0.875rem; }
+    .status-row .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .dot.ok { background: var(--success); }
+    .dot.err { background: var(--error); }
+
+    pre {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      font-size: 0.8rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 320px;
+      overflow-y: auto;
+      color: var(--text);
+      line-height: 1.55;
+    }
+
+    .copy-btn {
+      margin-top: 10px;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+    .copy-btn:hover { border-color: var(--accent); color: var(--text); }
+
+    .spinner {
+      display: none;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      width: 18px; height: 18px;
+      animation: spin 0.7s linear infinite;
+      margin: 0 auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner.active { display: inline-block; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>📷 OCR Service</h1>
+  <p>Extract text from images and save to your destinations</p>
+</header>
+
+<div class="card">
+
+  <div>
+    <label for="title-input">Note title</label>
+    <input type="text" id="title-input" placeholder="OCR – today's date (default)" />
+  </div>
+
+  <div>
+    <label>Images</label>
+    <div class="drop-zone" id="drop-zone">
+      <input type="file" id="file-input" accept="image/*" multiple capture="environment" />
+      <div class="icon">🖼️</div>
+      <p><strong>Tap to choose</strong> or drag &amp; drop</p>
+      <p>JPEG, PNG, WebP — up to 20 MB each</p>
+    </div>
+    <div id="preview-grid" style="margin-top:10px;"></div>
+  </div>
+
+  <div>
+    <label>Save to</label>
+    <div class="outputs" id="outputs">
+      <label class="output-chip selected">
+        <input type="checkbox" name="outputs" value="file" checked /> 📄 Local file
+      </label>
+      <label class="output-chip selected">
+        <input type="checkbox" name="outputs" value="notion" checked /> 🔲 Notion
+      </label>
+      <label class="output-chip selected">
+        <input type="checkbox" name="outputs" value="notes" checked /> 🍎 Apple Notes
+      </label>
+    </div>
+  </div>
+
+  <button type="submit" id="submit-btn" disabled>
+    Extract Text
+  </button>
+  <div class="spinner" id="spinner"></div>
+
+</div>
+
+<div id="result">
+  <div class="result-card">
+    <h2>Results</h2>
+    <div class="destination-status" id="destination-status"></div>
+    <pre id="text-output"></pre>
+    <button class="copy-btn" id="copy-btn">Copy text</button>
+  </div>
+</div>
+
+<script>
+  const fileInput   = document.getElementById('file-input');
+  const dropZone    = document.getElementById('drop-zone');
+  const previewGrid = document.getElementById('preview-grid');
+  const submitBtn   = document.getElementById('submit-btn');
+  const spinner     = document.getElementById('spinner');
+  const result      = document.getElementById('result');
+  const statusDiv   = document.getElementById('destination-status');
+  const textOutput  = document.getElementById('text-output');
+  const copyBtn     = document.getElementById('copy-btn');
+
+  let selectedFiles = [];
+
+  // Chip toggle
+  document.querySelectorAll('.output-chip').forEach(chip => {
+    chip.addEventListener('click', () => chip.classList.toggle('selected'));
+  });
+
+  // Drag-over highlight
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    addFiles([...e.dataTransfer.files]);
+  });
+
+  fileInput.addEventListener('change', () => {
+    addFiles([...fileInput.files]);
+    fileInput.value = '';
+  });
+
+  function addFiles(newFiles) {
+    selectedFiles = [...selectedFiles, ...newFiles.filter(f => f.type.startsWith('image/'))];
+    renderPreviews();
+    submitBtn.disabled = selectedFiles.length === 0;
+  }
+
+  function renderPreviews() {
+    previewGrid.innerHTML = '';
+    selectedFiles.forEach((file, i) => {
+      const url = URL.createObjectURL(file);
+      const div = document.createElement('div');
+      div.className = 'thumb';
+      div.innerHTML = `<img src="${url}" /><button class="remove" data-i="${i}">✕</button>`;
+      previewGrid.appendChild(div);
+    });
+    previewGrid.querySelectorAll('.remove').forEach(btn => {
+      btn.addEventListener('click', () => {
+        selectedFiles.splice(Number(btn.dataset.i), 1);
+        renderPreviews();
+        submitBtn.disabled = selectedFiles.length === 0;
+      });
+    });
+  }
+
+  submitBtn.addEventListener('click', async () => {
+    const title = document.getElementById('title-input').value.trim();
+    const checkedOutputs = [...document.querySelectorAll('.output-chip.selected input')]
+      .map(i => i.value);
+
+    if (selectedFiles.length === 0) return;
+
+    submitBtn.disabled = true;
+    spinner.classList.add('active');
+    result.classList.remove('visible');
+
+    const formData = new FormData();
+    selectedFiles.forEach(f => formData.append('images', f));
+    if (title) formData.append('title', title);
+    checkedOutputs.forEach(o => formData.append('outputs', o));
+
+    try {
+      const res = await fetch('/extract', { method: 'POST', body: formData });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || 'Unknown error');
+
+      // Status rows
+      statusDiv.innerHTML = '';
+      const labels = { file: '📄 Local file', notion: '🔲 Notion', notes: '🍎 Apple Notes' };
+      for (const key of checkedOutputs) {
+        const ok = data.results[key] !== undefined && !data.errors[key];
+        const errMsg = data.errors[key] ? ` — ${data.errors[key]}` : '';
+        statusDiv.innerHTML += `
+          <div class="status-row">
+            <span class="dot ${ok ? 'ok' : 'err'}"></span>
+            <span>${labels[key]}${errMsg}</span>
+          </div>`;
+      }
+
+      textOutput.textContent = data.text;
+      result.classList.add('visible');
+      result.scrollIntoView({ behavior: 'smooth' });
+
+    } catch (err) {
+      alert('Error: ' + err.message);
+    } finally {
+      submitBtn.disabled = false;
+      spinner.classList.remove('active');
+    }
+  });
+
+  copyBtn.addEventListener('click', () => {
+    navigator.clipboard.writeText(textOutput.textContent);
+    copyBtn.textContent = 'Copied!';
+    setTimeout(() => copyBtn.textContent = 'Copy text', 1500);
+  });
+</script>
+</body>
+</html>
