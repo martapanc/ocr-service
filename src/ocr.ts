@@ -5,11 +5,14 @@ import { createWorker } from "tesseract.js";
 // English words (URLs, brand names, code, etc.). Add more with "+" if needed.
 const TESSERACT_LANG = process.env.TESSERACT_LANG ?? "ita+eng";
 
+// Lines whose Tesseract confidence is below this threshold are treated as noise.
+// Range 0–100; 40 filters most symbol/garbage lines while keeping real text.
+const CONFIDENCE_THRESHOLD = Number(process.env.OCR_CONFIDENCE_THRESHOLD ?? 40);
+
+console.log({CONFIDENCE_THRESHOLD});
+
 export async function extractTextFromImage(filePath: string): Promise<string> {
-  // A worker is created per-call so the server stays stateless and parallel
-  // uploads don't share state. For high-volume use you'd want a worker pool.
   const worker = await createWorker(TESSERACT_LANG, 1, {
-    // Point to the local .traineddata files in the project root
     langPath: path.resolve(process.cwd(), "."),
     logger: () => {},
     errorHandler: () => {},
@@ -17,10 +20,38 @@ export async function extractTextFromImage(filePath: string): Promise<string> {
 
   try {
     const { data } = await worker.recognize(filePath);
-    return data.text.trim();
+
+    // Filter out low-confidence lines (noise, symbols, gibberish)
+    const goodLines: string[] = (data.lines as Array<{ confidence: number; text: string }>)
+      .filter((l) => l.confidence >= CONFIDENCE_THRESHOLD)
+      .map((l) => l.text.trim())
+      .filter(Boolean);
+
+    return rejoinLines(goodLines);
   } finally {
     await worker.terminate();
   }
+}
+
+/**
+ * Joins broken lines back into sentences.
+ * - Lines that end with sentence-closing punctuation (.?!) start a new paragraph.
+ * - All other line breaks are replaced with a single space (the image broke a
+ *   sentence across lines, not a real paragraph break).
+ */
+function rejoinLines(lines: string[]): string {
+  if (lines.length === 0) return "";
+
+  let result = "";
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    result += line;
+    if (i < lines.length - 1) {
+      // Sentence-ending punctuation → paragraph break; otherwise join with space
+      result += /[.?!]\s*$/.test(line) ? "\n" : " ";
+    }
+  }
+  return result.trim();
 }
 
 export async function extractTextFromImages(

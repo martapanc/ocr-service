@@ -27,8 +27,8 @@ RUN yarn install --frozen-lockfile --production
 
 COPY --from=builder /app/dist ./dist
 
-# Tesseract language models
-COPY *.traineddata ./
+# Tesseract language models + optional word files (suppresses "failed to load" warnings)
+COPY *.traineddata *.special-words ./
 
 RUN mkdir -p tmp output
 
