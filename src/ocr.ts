@@ -11,8 +11,8 @@ export async function extractTextFromImage(filePath: string): Promise<string> {
   const worker = await createWorker(TESSERACT_LANG, 1, {
     // Point to the local .traineddata files in the project root
     langPath: path.resolve(process.cwd(), "."),
-    // Suppress the verbose Tesseract progress logs
     logger: () => {},
+    errorHandler: () => {},
   });
 
   try {

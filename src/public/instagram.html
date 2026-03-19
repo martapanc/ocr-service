@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OCR Service – Instagram</title>
+  <link rel="stylesheet" href="/style.css" />
+  <style>
+    .mode-link {
+      display: inline-block;
+      color: var(--muted);
+      font-size: 0.85rem;
+      text-decoration: none;
+      margin-bottom: 4px;
+    }
+    .mode-link:hover { color: var(--text); }
+    input[type="url"] {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 1rem;
+      padding: 10px 12px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input[type="url"]:focus { border-color: var(--accent); }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>📷 OCR Service</h1>
+  <p>Extract text from Instagram carousels</p>
+</header>
+
+<div class="card">
+
+  <a href="/" class="mode-link">← Back to upload</a>
+
+  <div>
+    <label for="url-input">Instagram post URL</label>
+    <input type="url" id="url-input" placeholder="https://www.instagram.com/p/…" />
+  </div>
+
+  <div>
+    <label for="title-input">Note title</label>
+    <input type="text" id="title-input" placeholder="OCR – today's date (default)" />
+  </div>
+
+  <div>
+    <label>Save to</label>
+    <div class="outputs" id="outputs">
+      <button type="button" class="output-chip" data-value="file">
+        <span class="chip-indicator"></span> 📄 Local file
+      </button>
+      <button type="button" class="output-chip" data-value="notion">
+        <span class="chip-indicator"></span> 🔲 Notion
+      </button>
+      <button type="button" class="output-chip" data-value="notes">
+        <span class="chip-indicator"></span> 🍎 Apple Notes
+      </button>
+    </div>
+  </div>
+
+  <button type="submit" id="submit-btn" disabled>
+    Extract Text
+  </button>
+  <div class="spinner" id="spinner"></div>
+
+</div>
+
+<div id="result">
+  <div class="result-card">
+    <h2>Results</h2>
+    <div class="destination-status" id="destination-status"></div>
+    <pre id="text-output"></pre>
+    <button class="copy-btn" id="copy-btn">Copy text</button>
+  </div>
+</div>
+
+<script>
+  const urlInput    = document.getElementById('url-input');
+  const submitBtn   = document.getElementById('submit-btn');
+  const spinner     = document.getElementById('spinner');
+  const result      = document.getElementById('result');
+  const statusDiv   = document.getElementById('destination-status');
+  const textOutput  = document.getElementById('text-output');
+  const copyBtn     = document.getElementById('copy-btn');
+
+  const selectedOutputs = new Set(['file']);
+
+  // Chip toggle
+  document.querySelectorAll('.output-chip').forEach(chip => {
+    if (selectedOutputs.has(chip.dataset.value)) {
+      chip.classList.add('selected');
+      chip.querySelector('.chip-indicator').textContent = '✓';
+    }
+    chip.addEventListener('click', () => {
+      const value = chip.dataset.value;
+      if (selectedOutputs.has(value)) {
+        selectedOutputs.delete(value);
+        chip.classList.remove('selected');
+        chip.querySelector('.chip-indicator').textContent = '';
+      } else {
+        selectedOutputs.add(value);
+        chip.classList.add('selected');
+        chip.querySelector('.chip-indicator').textContent = '✓';
+      }
+    });
+  });
+
+  // Enable submit when URL is non-empty
+  urlInput.addEventListener('input', () => {
+    submitBtn.disabled = urlInput.value.trim() === '';
+  });
+
+  submitBtn.addEventListener('click', async () => {
+    const url = urlInput.value.trim();
+    const title = document.getElementById('title-input').value.trim();
+    const outputs = [...selectedOutputs];
+
+    if (!url) return;
+
+    submitBtn.disabled = true;
+    spinner.classList.add('active');
+    result.classList.remove('visible');
+
+    try {
+      const res = await fetch('/extract-instagram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, title, outputs }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || 'Unknown error');
+
+      // Status rows
+      statusDiv.innerHTML = '';
+      const labels = { file: '📄 Local file', notion: '🔲 Notion', notes: '🍎 Apple Notes' };
+      for (const key of outputs) {
+        const ok = data.results[key] !== undefined && !data.errors[key];
+        const errMsg = data.errors[key] ? ` — ${data.errors[key]}` : '';
+        statusDiv.innerHTML += `
+          <div class="status-row">
+            <span class="dot ${ok ? 'ok' : 'err'}"></span>
+            <span>${labels[key]}${errMsg}</span>
+          </div>`;
+      }
+
+      textOutput.textContent = data.text;
+      result.classList.add('visible');
+      result.scrollIntoView({ behavior: 'smooth' });
+
+    } catch (err) {
+      alert('Error: ' + err.message);
+    } finally {
+      submitBtn.disabled = urlInput.value.trim() === '';
+      spinner.classList.remove('active');
+    }
+  });
+
+  copyBtn.addEventListener('click', () => {
+    navigator.clipboard.writeText(textOutput.textContent);
+    copyBtn.textContent = 'Copied!';
+    setTimeout(() => copyBtn.textContent = 'Copy text', 1500);
+  });
+</script>
+</body>
+</html>

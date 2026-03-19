@@ -7,6 +7,7 @@ import { extractTextFromImages } from "./ocr.js";
 import { saveToFile } from "./outputs/file.js";
 import { saveToNotion } from "./outputs/notion.js";
 import { saveToAppleNotes } from "./outputs/notes.js";
+import { scrapeInstagramCarousel } from "./instagram.js";
 
 const app = express();
 const PORT = Number(process.env.PORT ?? 3089);
@@ -97,6 +98,76 @@ app.post(
     }
   }
 );
+
+// ── Instagram carousel route ───────────────────────────────────────────────────
+app.post("/extract-instagram", express.json(), async (req: Request, res: Response) => {
+  const { url, title: rawTitle, outputs } = req.body as {
+    url: string;
+    title?: string;
+    outputs?: string | string[];
+  };
+
+  if (!url) {
+    res.status(400).json({ error: "Missing url in request body." });
+    return;
+  }
+
+  const title: string = rawTitle?.trim() || `OCR – ${new Date().toLocaleDateString()}`;
+  const outputList: string[] = Array.isArray(outputs)
+    ? outputs
+    : outputs
+    ? [outputs]
+    : [];
+
+  console.log(`\n[${new Date().toISOString()}] Instagram extract: ${url} — outputs: ${outputList.join(", ") || "none"}`);
+
+  let tempFiles: Array<{ path: string; originalname: string }> = [];
+
+  try {
+    tempFiles = await scrapeInstagramCarousel(url);
+
+    const text = await extractTextFromImages(tempFiles);
+
+    const results: Record<string, string | null> = {};
+    const errors: Record<string, string> = {};
+
+    if (outputList.includes("file")) {
+      try {
+        results.filePath = saveToFile(text, title);
+      } catch (e) {
+        errors.file = String(e);
+      }
+    }
+
+    if (outputList.includes("notion")) {
+      try {
+        await saveToNotion(text, title);
+        results.notion = "ok";
+      } catch (e) {
+        errors.notion = String(e);
+      }
+    }
+
+    if (outputList.includes("notes")) {
+      try {
+        await saveToAppleNotes(text, title);
+        results.notes = "ok";
+      } catch (e) {
+        errors.notes = String(e);
+      }
+    }
+
+    res.json({ title, text, results, errors });
+  } catch (err: any) {
+    console.error("Instagram extraction failed:", err);
+    const status = err.status ?? 500;
+    res.status(status).json({ error: err.message ?? String(err) });
+  } finally {
+    for (const file of tempFiles) {
+      fs.unlink(file.path, () => {});
+    }
+  }
+});
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`\n🔍 OCR Service running at http://localhost:${PORT}`);
