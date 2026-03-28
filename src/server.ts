@@ -3,6 +3,7 @@ import express, { Request, Response } from "express";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import archiver from "archiver";
 import { extractTextFromImages } from "./ocr.js";
 import { saveToFile } from "./outputs/file.js";
 import { saveToNotion } from "./outputs/notion.js";
@@ -162,6 +163,49 @@ app.post("/extract-instagram", express.json(), async (req: Request, res: Respons
     console.error("Instagram extraction failed:", err);
     const status = err.status ?? 500;
     res.status(status).json({ error: err.message ?? String(err) });
+  } finally {
+    for (const file of tempFiles) {
+      fs.unlink(file.path, () => {});
+    }
+  }
+});
+
+// ── Instagram download route ───────────────────────────────────────────────────
+app.post("/download-instagram", express.json(), async (req: Request, res: Response) => {
+  const { url } = req.body as { url: string };
+
+  if (!url) {
+    res.status(400).json({ error: "Missing url in request body." });
+    return;
+  }
+
+  console.log(`\n[${new Date().toISOString()}] Instagram download: ${url}`);
+
+  let tempFiles: Array<{ path: string; originalname: string }> = [];
+
+  try {
+    tempFiles = await scrapeInstagramCarousel(url);
+
+    const slugMatch = url.match(/\/p\/([A-Za-z0-9_-]+)/);
+    const slug = slugMatch ? slugMatch[1] : "carousel";
+
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader("Content-Disposition", `attachment; filename="instagram-${slug}.zip"`);
+
+    const archive = archiver("zip", { zlib: { level: 6 } });
+    archive.pipe(res);
+
+    for (const file of tempFiles) {
+      archive.file(file.path, { name: file.originalname });
+    }
+
+    await archive.finalize();
+  } catch (err: any) {
+    console.error("Instagram download failed:", err);
+    if (!res.headersSent) {
+      const status = err.status ?? 500;
+      res.status(status).json({ error: err.message ?? String(err) });
+    }
   } finally {
     for (const file of tempFiles) {
       fs.unlink(file.path, () => {});

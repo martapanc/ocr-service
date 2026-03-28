@@ -64,9 +64,14 @@
     </div>
   </div>
 
-  <button type="submit" id="submit-btn" disabled>
-    Extract Text
-  </button>
+  <div style="display:flex;gap:10px;">
+    <button type="submit" id="submit-btn" disabled style="flex:1;">
+      Extract Text
+    </button>
+    <button type="button" id="download-btn" disabled style="flex:0 0 auto;">
+      Download images
+    </button>
+  </div>
   <div class="spinner" id="spinner"></div>
 
 </div>
@@ -83,6 +88,7 @@
 <script>
   const urlInput    = document.getElementById('url-input');
   const submitBtn   = document.getElementById('submit-btn');
+  const downloadBtn = document.getElementById('download-btn');
   const spinner     = document.getElementById('spinner');
   const result      = document.getElementById('result');
   const statusDiv   = document.getElementById('destination-status');
@@ -111,9 +117,11 @@
     });
   });
 
-  // Enable submit when URL is non-empty
+  // Enable buttons when URL is non-empty
   urlInput.addEventListener('input', () => {
-    submitBtn.disabled = urlInput.value.trim() === '';
+    const empty = urlInput.value.trim() === '';
+    submitBtn.disabled = empty;
+    downloadBtn.disabled = empty;
   });
 
   submitBtn.addEventListener('click', async () => {
@@ -158,6 +166,45 @@
       alert('Error: ' + err.message);
     } finally {
       submitBtn.disabled = urlInput.value.trim() === '';
+      spinner.classList.remove('active');
+    }
+  });
+
+  downloadBtn.addEventListener('click', async () => {
+    const url = urlInput.value.trim();
+    if (!url) return;
+
+    downloadBtn.disabled = true;
+    downloadBtn.textContent = 'Downloading…';
+    spinner.classList.add('active');
+
+    try {
+      const res = await fetch('/download-instagram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Unknown error');
+      }
+
+      const blob = await res.blob();
+      const disposition = res.headers.get('Content-Disposition') || '';
+      const match = disposition.match(/filename="([^"]+)"/);
+      const filename = match ? match[1] : 'instagram-carousel.zip';
+
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch (err) {
+      alert('Error: ' + err.message);
+    } finally {
+      downloadBtn.disabled = urlInput.value.trim() === '';
+      downloadBtn.textContent = 'Download images';
       spinner.classList.remove('active');
     }
   });
