@@ -6,3 +6,5 @@ output/
 *.log
 .idea/
 output/*
+
+.DS_Store

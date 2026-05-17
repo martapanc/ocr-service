@@ -5,6 +5,7 @@ import path from "path";
 import { randomUUID } from "crypto";
 
 const MAX_SLIDES = 20;
+const TIMEOUT = 500;
 
 export async function scrapeInstagramCarousel(
   postUrl: string
@@ -19,6 +20,7 @@ export async function scrapeInstagramCarousel(
   }
 
   const browser = await chromium.launch({
+    headless: process.env.PLAYWRIGHT_HEADLESS !== "false",
     executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
     args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
   });
@@ -101,7 +103,7 @@ export async function scrapeInstagramCarousel(
 
       await nextBtn.click();
       // Wait for carousel transition to settle before reading DOM again
-      await page.waitForTimeout(1000);
+      await page.waitForTimeout(TIMEOUT);
     }
   } finally {
     await page.close();
