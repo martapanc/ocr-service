@@ -30,7 +30,7 @@ COPY --from=builder /app/dist ./dist
 # Tesseract language models + optional word files (suppresses "failed to load" warnings)
 COPY *.traineddata *.special-words ./
 
-RUN mkdir -p tmp output
+RUN mkdir -p tmp
 
 EXPOSE 3089
 

@@ -56,11 +56,17 @@ export async function scrapeInstagramCarousel(
       timeout: 20000,
     });
 
-    // Check for login redirect
+    // Check for login redirect. Instagram sometimes 302s an invalid-session
+    // request straight to the logged-out root ("/") instead of "/accounts/login",
+    // so also detect the login form itself rather than relying on the URL alone.
     const landedUrl = page.url();
-    if (landedUrl.includes("/accounts/login") || landedUrl.includes("/challenge")) {
+    const loggedOut =
+      landedUrl.includes("/accounts/login") ||
+      landedUrl.includes("/challenge") ||
+      (await page.$("input[type='password']")) !== null;
+    if (loggedOut) {
       throw Object.assign(
-        new Error("Instagram auth failed — check session cookie"),
+        new Error("Instagram auth failed — session cookie is expired or invalid, get a fresh sessionid"),
         { status: 401 }
       );
     }

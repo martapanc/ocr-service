@@ -54,16 +54,27 @@ function rejoinLines(lines: string[]): string {
   return result.trim();
 }
 
+export interface OcrSection {
+  source: string;
+  text: string;
+}
+
 export async function extractTextFromImages(
   files: Array<{ path: string; originalname: string }>
-): Promise<string> {
-  const results: string[] = [];
+): Promise<OcrSection[]> {
+  const sections: OcrSection[] = [];
 
   for (const file of files) {
     console.log(`  → Extracting text from ${file.originalname}…`);
     const text = await extractTextFromImage(file.path);
-    results.push(`<!-- Source: ${file.originalname} -->\n\n${text}`);
+    sections.push({ source: file.originalname, text });
   }
 
-  return results.join("\n\n---\n\n");
+  return sections;
+}
+
+/** Flattens OCR sections into a single Markdown document. */
+export function sectionsToMarkdown(sections: OcrSection[]): string {
+  if (sections.length === 1) return sections[0].text;
+  return sections.map((s) => `### ${s.source}\n\n${s.text}`).join("\n\n---\n\n");
 }

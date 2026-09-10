@@ -4,33 +4,11 @@ const previewGrid = document.getElementById('preview-grid');
 const submitBtn   = document.getElementById('submit-btn');
 const spinner     = document.getElementById('spinner');
 const result      = document.getElementById('result');
-const statusDiv   = document.getElementById('destination-status');
-const textOutput  = document.getElementById('text-output');
-const copyBtn     = document.getElementById('copy-btn');
+const resultTitle = document.getElementById('result-title');
 
 let selectedFiles = [];
-const selectedOutputs = new Set(['file']);
-
-// Chip toggle
-document.querySelectorAll('.output-chip').forEach(chip => {
-  // Apply default selection on init
-  if (selectedOutputs.has(chip.dataset.value)) {
-    chip.classList.add('selected');
-    chip.querySelector('.chip-indicator').textContent = '✓';
-  }
-  chip.addEventListener('click', () => {
-    const value = chip.dataset.value;
-    if (selectedOutputs.has(value)) {
-      selectedOutputs.delete(value);
-      chip.classList.remove('selected');
-      chip.querySelector('.chip-indicator').textContent = '';
-    } else {
-      selectedOutputs.add(value);
-      chip.classList.add('selected');
-      chip.querySelector('.chip-indicator').textContent = '✓';
-    }
-  });
-});
+let lastState = { text: '', title: '' };
+setupResultActions(() => lastState);
 
 // Drag-over highlight
 dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
@@ -91,7 +69,6 @@ function renderPreviews() {
 
 submitBtn.addEventListener('click', async () => {
   const title = document.getElementById('title-input').value.trim();
-  const checkedOutputs = [...selectedOutputs];
 
   if (selectedFiles.length === 0) return;
 
@@ -102,7 +79,6 @@ submitBtn.addEventListener('click', async () => {
   const formData = new FormData();
   selectedFiles.forEach(f => formData.append('images', f));
   if (title) formData.append('title', title);
-  checkedOutputs.forEach(o => formData.append('outputs', o));
 
   try {
     const res = await fetch('/extract', { method: 'POST', body: formData });
@@ -110,20 +86,9 @@ submitBtn.addEventListener('click', async () => {
 
     if (!res.ok) throw new Error(data.error || 'Unknown error');
 
-    // Status rows
-    statusDiv.innerHTML = '';
-    const labels = { file: '📄 Local file', notion: '🔲 Notion', notes: '🍎 Apple Notes' };
-    for (const key of checkedOutputs) {
-      const ok = data.results[key] !== undefined && !data.errors[key];
-      const errMsg = data.errors[key] ? ` — ${data.errors[key]}` : '';
-      statusDiv.innerHTML += `
-        <div class="status-row">
-          <span class="dot ${ok ? 'ok' : 'err'}"></span>
-          <span>${labels[key]}${errMsg}</span>
-        </div>`;
-    }
-
-    textOutput.textContent = data.text;
+    lastState = { text: data.text, title: data.title };
+    resultTitle.textContent = data.title;
+    renderSections(data.sections);
     result.classList.add('visible');
     result.scrollIntoView({ behavior: 'smooth' });
 
@@ -133,10 +98,4 @@ submitBtn.addEventListener('click', async () => {
     submitBtn.disabled = false;
     spinner.classList.remove('active');
   }
-});
-
-copyBtn.addEventListener('click', () => {
-  navigator.clipboard.writeText(textOutput.textContent);
-  copyBtn.textContent = 'Copied!';
-  setTimeout(() => copyBtn.textContent = 'Copy text', 1500);
 });

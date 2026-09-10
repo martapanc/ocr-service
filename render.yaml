@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: ocr-service
+    runtime: docker
+    plan: free
+    envVars:
+      - key: TESSERACT_LANG
+        value: ita+eng
+      - key: OCR_CONFIDENCE_THRESHOLD
+        value: "40"
+      - key: INSTAGRAM_SESSION_ID
+        sync: false

@@ -1,22 +1,17 @@
 # OCR Service
 
-A web-based OCR (Optical Character Recognition) service that extracts text from images and saves results to multiple destinations: local Markdown files, Notion, and Apple Notes.
+A web-based OCR (Optical Character Recognition) service. Its main feature is pulling text off Instagram carousel posts (screenshots of quotes, threads, recipes, etc.); it can also OCR images you upload directly.
 
 ## Features
 
-- Upload up to 20 images at once (JPEG, PNG, WebP, GIF)
-- Extract text using Tesseract OCR with multi-language support (default: Italian + English)
-- Save extracted text to:
-  - **Local files** — timestamped Markdown files
-  - **Notion** — creates pages in a Notion database
-  - **Apple Notes** — macOS only, via AppleScript
-- Clean web UI with drag-and-drop, image previews, and copy-to-clipboard
+- **Instagram carousel extractor** — paste a post URL, it scrapes every slide and OCRs the text (or download the raw slide images as a zip)
+- **Image upload** — drag & drop up to 20 images (JPEG, PNG, WebP, GIF) for OCR
+- Tesseract OCR with multi-language support (default: Italian + English)
+- Clean web UI: copy extracted text to the clipboard, or download it as a Markdown file
 
 ## Requirements
 
 - Node.js 18+ and Yarn, **or** Docker
-
-> **Note:** Apple Notes integration is macOS-only and not available inside Docker.
 
 ## Setup
 
@@ -48,92 +43,102 @@ The server runs on `http://localhost:3089` by default.
 
 ## Docker
 
-**1. Configure environment**
-
 ```bash
 cp .env.example .env
-# edit .env with your NOTION_TOKEN etc.
-```
-
-**2. Build and run**
-
-```bash
+# edit .env — at minimum set INSTAGRAM_SESSION_ID
 docker compose up --build
 ```
 
-The app will be available at `http://localhost:3089`. The `output/` directory is mounted as a volume so extracted Markdown files persist on the host. All variables from `.env` are passed into the container automatically via `env_file`.
+The app will be available at `http://localhost:3089`.
 
 **Without Compose:**
 
 ```bash
 docker build -t ocr-service .
-docker run -p 3089:3089 --env-file .env -v $(pwd)/output:/app/output ocr-service
+docker run -p 3089:3089 --env-file .env ocr-service
 ```
-
-**Stopping:**
-
-```bash
-docker compose down
-```
-
-> Apple Notes output requires macOS + AppleScript and is not supported inside Docker.
 
 ## Configuration
 
 All options are set via environment variables in `.env`:
 
-| Variable             | Default    | Description                                                                                                                            |
-|----------------------|------------|----------------------------------------------------------------------------------------------------------------------------------------|
-| `PORT`               | `3089`     | Server port                                                                                                                            |
-| `TESSERACT_LANG`     | `ita+eng`  | OCR language(s). Combine with `+` (e.g. `ita+eng+fra`). See [available languages](https://tesseract-ocr.github.io/tessdoc/Data-Files). |
-| `OUTPUT_DIR`         | `./output` | Directory for local Markdown output files                                                                                              |
-| `NOTION_TOKEN`       | —          | Notion integration token (from [notion.so/my-integrations](https://www.notion.so/my-integrations))                                     |
-| `NOTION_DATABASE_ID` | —          | ID of the target Notion database                                                                                                       |
+| Variable                    | Default    | Description                                                                                                                            |
+|-----------------------------|------------|------------------------------------------------------------------------------------------------------------------------------------------|
+| `PORT`                      | `3089`     | Server port                                                                                                                            |
+| `TESSERACT_LANG`            | `ita+eng`  | OCR language(s). Combine with `+` (e.g. `ita+eng+fra`). See [available languages](https://tesseract-ocr.github.io/tessdoc/Data-Files). |
+| `OCR_CONFIDENCE_THRESHOLD`  | `40`       | Lines with a Tesseract confidence below this (0–100) are dropped as noise.                                                            |
+| `INSTAGRAM_SESSION_ID`      | —          | Your logged-in Instagram `sessionid` cookie. Required for the carousel extractor.                                                     |
 
 ### Adding Tesseract language models
 
 The repo includes `eng.traineddata` and `ita.traineddata`. To add more languages, download the corresponding `.traineddata` file from the [Tesseract tessdata repository](https://github.com/tesseract-ocr/tessdata) and place it in the project root.
 
-### Notion setup
+### Getting an Instagram session cookie
 
-1. Create a Notion integration at [notion.so/my-integrations](https://www.notion.so/my-integrations) and copy the token.
-2. Share the target database with your integration.
-3. Copy the database ID from its URL: `notion.so/{workspace}/{DATABASE_ID}?v=...`
-4. Set `NOTION_TOKEN` and `NOTION_DATABASE_ID` in `.env`.
+1. Log in to instagram.com in Chrome.
+2. DevTools → Application → Cookies → `https://www.instagram.com` → copy the `sessionid` value.
+3. Set `INSTAGRAM_SESSION_ID` in `.env`.
 
-The database must have a property named **Name** (title type).
+Session cookies expire periodically — if the extractor starts returning a 401 auth error, grab a fresh one.
 
 ## API
 
-### `POST /extract`
+### `POST /extract-instagram`
 
-Extracts text from uploaded images and saves to the selected destinations.
+Scrapes an Instagram carousel post and OCRs each slide.
 
-**Request** (multipart/form-data):
+**Request** (JSON): `{ "url": "https://www.instagram.com/p/...", "title": "optional note title" }`
 
-| Field     | Type               | Description                                |
-|-----------|--------------------|--------------------------------------------|
-| `images`  | File[]             | Images to process (max 20, max 20 MB each) |
-| `title`   | string (optional)  | Note title. Defaults to `OCR – {date}`     |
-| `outputs` | string \| string[] | Destinations: `file`, `notion`, `notes`    |
-
-**Response** (JSON):
+**Response**:
 
 ```json
 {
   "title": "My note",
-  "text": "Extracted text content...",
-  "results": {
-    "filePath": "/path/to/output/2024-01-01T12-00-00-my-note.md",
-    "notion": "ok",
-    "notes": "ok"
-  },
-  "errors": {
-    "file": null,
-    "notion": null,
-    "notes": null
-  }
+  "text": "Flattened Markdown text of all slides",
+  "sections": [{ "source": "slide-1.jpg", "text": "..." }]
 }
+```
+
+### `POST /download-instagram`
+
+Same scraping step, but returns the raw slide images as a `.zip` instead of running OCR.
+
+**Request** (JSON): `{ "url": "https://www.instagram.com/p/..." }`
+
+### `POST /extract`
+
+OCRs uploaded images.
+
+**Request** (multipart/form-data):
+
+| Field    | Type              | Description                                |
+|----------|-------------------|--------------------------------------------|
+| `images` | File[]            | Images to process (max 20, max 20 MB each) |
+| `title`  | string (optional) | Note title. Defaults to `OCR – {date}`     |
+
+**Response**: same shape as `/extract-instagram`.
+
+## Deploying
+
+This app runs a persistent Node/Express server and drives a headless Chromium via Playwright to scrape Instagram — that rules out plain serverless platforms (Netlify, Vercel functions), which don't support long-running processes or the Chromium binary. The included `Dockerfile` is built for a normal container host instead.
+
+### Render (recommended)
+
+The repo includes a `render.yaml` blueprint:
+
+1. Push this repo to GitHub.
+2. In Render, **New → Blueprint**, point it at the repo — it will pick up `render.yaml` and build from the `Dockerfile`.
+3. Set the `INSTAGRAM_SESSION_ID` secret in the Render dashboard (the blueprint leaves it unset on purpose).
+4. Deploy. The free plan spins the service down after inactivity and wakes it back up on the next request — fine for occasional personal use; upgrade to a paid plan if you want it always warm.
+
+### Fly.io
+
+Also works from the same `Dockerfile`:
+
+```bash
+fly launch --no-deploy   # generates fly.toml, don't let it override the Dockerfile
+fly secrets set INSTAGRAM_SESSION_ID=...
+fly deploy
 ```
 
 ## Project Structure
@@ -142,22 +147,22 @@ Extracts text from uploaded images and saves to the selected destinations.
 ocr-service/
 ├── src/
 │   ├── server.ts          # Express server and API routes
-│   ├── ocr.ts             # Tesseract OCR wrapper
-│   ├── public/
-│   │   ├── index.html     # Markup
-│   │   ├── style.css      # Styles
-│   │   └── app.js         # UI logic
-│   └── outputs/
-│       ├── file.ts        # Local Markdown output
-│       ├── notion.ts      # Notion API output
-│       └── notes.ts       # Apple Notes output (macOS)
-├── output/                # Default local output directory
-├── tmp/                   # Temporary upload directory
-├── eng.traineddata        # Tesseract English language model
-├── ita.traineddata        # Tesseract Italian language model
-├── .env.example           # Environment variable template
+│   ├── ocr.ts              # Tesseract OCR wrapper
+│   ├── instagram.ts        # Playwright-based Instagram carousel scraper
+│   └── public/
+│       ├── index.html      # Instagram extractor (main page)
+│       ├── upload.html     # Image upload page
+│       ├── style.css       # Styles
+│       ├── results.js      # Shared result rendering / copy / download
+│       ├── instagram.js    # Instagram page logic
+│       └── app.js          # Upload page logic
+├── tmp/                    # Temporary scrape/upload directory
+├── eng.traineddata         # Tesseract English language model
+├── ita.traineddata         # Tesseract Italian language model
+├── .env.example            # Environment variable template
 ├── Dockerfile
 ├── docker-compose.yml
+├── render.yaml
 └── tsconfig.json
 ```
 

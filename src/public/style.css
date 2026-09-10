@@ -114,33 +114,26 @@ input[type="text"]:focus { border-color: var(--accent); }
   font-size: 0.65rem; display: flex; align-items: center; justify-content: center;
 }
 
-/* Output toggles */
-.outputs { display: flex; gap: 8px; flex-wrap: wrap; }
-.output-chip {
-  display: flex; align-items: center; gap: 8px;
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 8px; padding: 10px 14px;
-  cursor: pointer; font-size: 0.875rem;
+.mode-link {
+  display: inline-block;
   color: var(--muted);
-  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  font-size: 0.85rem;
+  text-decoration: none;
 }
-.output-chip .chip-indicator {
-  width: 16px; height: 16px;
-  border: 2px solid currentColor;
-  border-radius: 4px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 0.6rem; flex-shrink: 0;
-}
-.output-chip.selected {
-  border-color: var(--accent);
-  background: rgba(124, 106, 255, 0.12);
+.mode-link:hover { color: var(--text); }
+
+input[type="url"] {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
   color: var(--text);
+  font-size: 1rem;
+  padding: 10px 12px;
+  outline: none;
+  transition: border-color 0.15s;
 }
-.output-chip.selected .chip-indicator {
-  background: var(--accent);
-  border-color: var(--accent);
-}
+input[type="url"]:focus { border-color: var(--accent); }
 
 button[type="submit"] {
   width: 100%; padding: 14px;
@@ -150,6 +143,22 @@ button[type="submit"] {
   transition: opacity 0.15s;
 }
 button[type="submit"]:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.actions-row { display: flex; gap: 10px; }
+.actions-row button[type="submit"] { flex: 1; }
+.secondary-btn {
+  flex: 0 0 auto;
+  padding: 14px 16px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 0.9rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.secondary-btn:hover { border-color: var(--accent); }
+.secondary-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* Result area */
 #result { display: none; width: 100%; max-width: 540px; }
@@ -161,29 +170,23 @@ button[type="submit"]:disabled { opacity: 0.4; cursor: not-allowed; }
   border-radius: var(--radius);
   padding: 20px;
 }
-.result-card h2 { font-size: 1rem; margin-bottom: 12px; }
-.destination-status { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
-.status-row { display: flex; align-items: center; gap: 8px; font-size: 0.875rem; }
-.status-row .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.dot.ok { background: var(--success); }
-.dot.err { background: var(--error); }
-
-pre {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 14px;
-  font-size: 0.8rem;
-  white-space: pre-wrap;
-  word-break: break-word;
-  max-height: 320px;
-  overflow-y: auto;
-  color: var(--text);
-  line-height: 1.55;
+.result-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
 }
+.result-header h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.result-buttons { display: flex; gap: 8px; flex-shrink: 0; }
 
-.copy-btn {
-  margin-top: 10px;
+.ghost-btn {
   background: transparent;
   border: 1px solid var(--border);
   color: var(--muted);
@@ -191,8 +194,39 @@ pre {
   padding: 6px 12px;
   font-size: 0.8rem;
   cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
 }
-.copy-btn:hover { border-color: var(--accent); color: var(--text); }
+.ghost-btn:hover { border-color: var(--accent); color: var(--text); }
+
+.sections {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: 460px;
+  overflow-y: auto;
+}
+.section {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+.section-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.section-body {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--text);
+}
+.section-body p { margin-bottom: 10px; }
+.section-body p:last-child { margin-bottom: 0; }
+.section-body p.muted { color: var(--muted); font-style: italic; }
 
 .spinner {
   display: none;

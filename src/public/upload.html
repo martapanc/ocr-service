@@ -3,38 +3,39 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>OCR Service</title>
+  <title>OCR Service – Upload</title>
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
 
 <header>
   <h1>📷 OCR Service</h1>
-  <p>Extract text from Instagram carousels</p>
+  <p>Extract text from uploaded images</p>
 </header>
 
 <div class="card">
 
-  <a href="/upload.html" class="mode-link">Upload images instead →</a>
-
-  <div>
-    <label for="url-input">Instagram post URL</label>
-    <input type="url" id="url-input" placeholder="https://www.instagram.com/p/…" />
-  </div>
+  <a href="/" class="mode-link">← Back to Instagram</a>
 
   <div>
     <label for="title-input">Note title</label>
     <input type="text" id="title-input" placeholder="OCR – today's date (default)" />
   </div>
 
-  <div class="actions-row">
-    <button type="submit" id="submit-btn" disabled>
-      Extract Text
-    </button>
-    <button type="button" id="download-btn" disabled class="secondary-btn">
-      Download images
-    </button>
+  <div>
+    <label>Images</label>
+    <div class="drop-zone" id="drop-zone">
+      <input type="file" id="file-input" accept="image/*" multiple capture="environment" />
+      <div class="icon">🖼️</div>
+      <p><strong>Tap to choose</strong> or drag &amp; drop</p>
+      <p>JPEG, PNG, WebP — up to 20 MB each</p>
+    </div>
+    <div id="preview-grid" style="margin-top:10px;"></div>
   </div>
+
+  <button type="submit" id="submit-btn" disabled>
+    Extract Text
+  </button>
   <div class="spinner" id="spinner"></div>
 
 </div>
@@ -53,6 +54,6 @@
 </div>
 
 <script src="/results.js"></script>
-<script src="/instagram.js"></script>
+<script src="/app.js"></script>
 </body>
 </html>

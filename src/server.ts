@@ -4,10 +4,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import archiver from "archiver";
-import { extractTextFromImages } from "./ocr.js";
-import { saveToFile } from "./outputs/file.js";
-import { saveToNotion } from "./outputs/notion.js";
-import { saveToAppleNotes } from "./outputs/notes.js";
+import { extractTextFromImages, sectionsToMarkdown } from "./ocr.js";
 import { scrapeInstagramCarousel } from "./instagram.js";
 
 const app = express();
@@ -42,52 +39,17 @@ app.post(
       (req.body.title as string)?.trim() ||
       `OCR – ${new Date().toLocaleDateString()}`;
 
-    const outputs: string[] = (req.body.outputs as string[] | string) instanceof Array
-      ? (req.body.outputs as string[])
-      : [req.body.outputs as string];
-
-    console.log(`\n[${new Date().toISOString()}] Received ${files.length} file(s) — outputs: ${outputs.join(", ")}`);
+    console.log(`\n[${new Date().toISOString()}] Received ${files.length} file(s)`);
 
     try {
-      // 1. Extract text from all images via Claude
-      const text = await extractTextFromImages(
+      const sections = await extractTextFromImages(
         files.map((f) => ({
           path: f.path,
           originalname: f.originalname,
         }))
       );
 
-      // 2. Save to requested destinations
-      const results: Record<string, string | null> = {};
-      const errors: Record<string, string> = {};
-
-      if (outputs.includes("file")) {
-        try {
-          results.filePath = saveToFile(text, title);
-        } catch (e) {
-          errors.file = String(e);
-        }
-      }
-
-      if (outputs.includes("notion")) {
-        try {
-          await saveToNotion(text, title);
-          results.notion = "ok";
-        } catch (e) {
-          errors.notion = String(e);
-        }
-      }
-
-      if (outputs.includes("notes")) {
-        try {
-          await saveToAppleNotes(text, title);
-          results.notes = "ok";
-        } catch (e) {
-          errors.notes = String(e);
-        }
-      }
-
-      res.json({ title, text, results, errors });
+      res.json({ title, sections, text: sectionsToMarkdown(sections) });
     } catch (err) {
       console.error("Extraction failed:", err);
       res.status(500).json({ error: String(err) });
@@ -102,11 +64,7 @@ app.post(
 
 // ── Instagram carousel route ───────────────────────────────────────────────────
 app.post("/extract-instagram", express.json(), async (req: Request, res: Response) => {
-  const { url, title: rawTitle, outputs } = req.body as {
-    url: string;
-    title?: string;
-    outputs?: string | string[];
-  };
+  const { url, title: rawTitle } = req.body as { url: string; title?: string };
 
   if (!url) {
     res.status(400).json({ error: "Missing url in request body." });
@@ -114,51 +72,17 @@ app.post("/extract-instagram", express.json(), async (req: Request, res: Respons
   }
 
   const title: string = rawTitle?.trim() || `OCR – ${new Date().toLocaleDateString()}`;
-  const outputList: string[] = Array.isArray(outputs)
-    ? outputs
-    : outputs
-    ? [outputs]
-    : [];
 
-  console.log(`\n[${new Date().toISOString()}] Instagram extract: ${url} — outputs: ${outputList.join(", ") || "none"}`);
+  console.log(`\n[${new Date().toISOString()}] Instagram extract: ${url}`);
 
   let tempFiles: Array<{ path: string; originalname: string }> = [];
 
   try {
     tempFiles = await scrapeInstagramCarousel(url);
 
-    const text = await extractTextFromImages(tempFiles);
+    const sections = await extractTextFromImages(tempFiles);
 
-    const results: Record<string, string | null> = {};
-    const errors: Record<string, string> = {};
-
-    if (outputList.includes("file")) {
-      try {
-        results.filePath = saveToFile(text, title);
-      } catch (e) {
-        errors.file = String(e);
-      }
-    }
-
-    if (outputList.includes("notion")) {
-      try {
-        await saveToNotion(text, title);
-        results.notion = "ok";
-      } catch (e) {
-        errors.notion = String(e);
-      }
-    }
-
-    if (outputList.includes("notes")) {
-      try {
-        await saveToAppleNotes(text, title);
-        results.notes = "ok";
-      } catch (e) {
-        errors.notes = String(e);
-      }
-    }
-
-    res.json({ title, text, results, errors });
+    res.json({ title, sections, text: sectionsToMarkdown(sections) });
   } catch (err: any) {
     console.error("Instagram extraction failed:", err);
     const status = err.status ?? 500;
