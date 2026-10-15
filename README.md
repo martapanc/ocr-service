@@ -8,6 +8,7 @@ A web-based OCR (Optical Character Recognition) service. Its main feature is pul
 - **Image upload** — drag & drop up to 20 images (JPEG, PNG, WebP, GIF) for OCR
 - Tesseract OCR with multi-language support (default: Italian + English)
 - Clean web UI: copy extracted text to the clipboard, or download it as a Markdown file
+- **Instagram comments exporter (CLI)** — dumps every comment and reply thread of a post to Markdown; re-running fetches only what's new
 
 ## Requirements
 
@@ -81,6 +82,26 @@ The repo includes `eng.traineddata` and `ita.traineddata`. To add more languages
 
 Session cookies expire periodically — if the extractor starts returning a 401 auth error, grab a fresh one.
 
+## Instagram comments exporter
+
+A standalone CLI (no browser, no server) that saves all comments and reply threads of a post as Markdown. It uses the same `INSTAGRAM_SESSION_ID` from `.env`. Instagram doesn't serve comments to logged-out requests.
+
+```bash
+yarn ig-comments https://www.instagram.com/p/<shortcode>/
+yarn ig-comments <url> --out some/dir   # default: output/comments
+yarn ig-comments <url> --full           # force a full rescan (see below)
+yarn ig-comments <url> --tz UTC         # timestamp timezone (default: Europe/Rome, shown as CET/CEST)
+```
+
+It writes two files per post:
+
+- `<shortcode>.md`: the post caption, then each thread in chronological order with `@username`, date and likes, and replies nested underneath. Comments fetched in the latest run are marked 🆕. Saved comments that later disappear stay in the file and are marked ❌ "no longer found". That can mean deleted, hidden by the owner or a filter, or the author deactivated their account or restricted you. The mark clears if the comment comes back.
+- `<shortcode>.json`: the stored comments plus per-thread reply counts. Keep it: later runs read it and only fetch what's new.
+
+How incremental runs work: top-level comments are fetched newest first, and a thread's replies are re-fetched only when its reply count has changed. For posts with ≤500 comments, every run rescans all top-level comments, which is cheap and catches new replies under old comments. For larger posts, a run stops at the first page with nothing new. New replies under older comments are then only picked up with `--full`. The same goes for spotting removed top-level comments. Removed replies are caught whenever their thread's reply count drops.
+
+Instagram's displayed comment count usually exceeds what the export holds. The count includes comments it hides from the API (spam-filtered or restricted accounts).
+
 ## API
 
 ### `POST /extract-instagram`
@@ -149,6 +170,9 @@ ocr-service/
 │   ├── server.ts          # Express server and API routes
 │   ├── ocr.ts              # Tesseract OCR wrapper
 │   ├── instagram.ts        # Playwright-based Instagram carousel scraper
+│   ├── instagram-comments.ts # Instagram comments fetcher + Markdown renderer
+│   ├── cli/
+│   │   └── instagram-comments.ts # `yarn ig-comments` entry point
 │   └── public/
 │       ├── index.html      # Instagram extractor (main page)
 │       ├── upload.html     # Image upload page
@@ -173,3 +197,4 @@ ocr-service/
 | `yarn dev`   | Start in watch mode (TypeScript, no build step) |
 | `yarn build` | Compile TypeScript to `dist/`                   |
 | `yarn start` | Run compiled production build                   |
+| `yarn ig-comments <url>` | Export/update a post's comments as Markdown |
