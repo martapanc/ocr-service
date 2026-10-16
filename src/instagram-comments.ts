@@ -225,8 +225,8 @@ export function renderMarkdown(store: CommentStore, runAt: string, timeZone = DE
   const header = (c: StoredComment) => {
     const parts = [`**@${c.username}**`, formatDate(c.createdAt, timeZone)];
     if (c.likes) parts.push(`♥ ${c.likes}`);
-    if (c.firstSeenAt === runAt) parts.push("🆕");
-    if (c.missingSince) parts.push(`❌ _no longer found since ${formatDate(Date.parse(c.missingSince) / 1000, timeZone)}_`);
+    if (c.firstSeenAt === runAt) parts.push("[N]");
+    if (c.missingSince) parts.push(`[D] _no longer found since ${formatDate(Date.parse(c.missingSince) / 1000, timeZone)}_`);
     return parts.join(" · ");
   };
   const indent = (text: string, prefix: string) =>
@@ -242,9 +242,9 @@ export function renderMarkdown(store: CommentStore, runAt: string, timeZone = DE
   const summary = [
     `${all.length} comments in ${roots.length} threads`,
     `last updated ${formatDate(Date.parse(runAt) / 1000, timeZone)}`,
-    `${newCount} new this run (🆕)`,
+    `${newCount} new this run [N]`,
   ];
-  if (missingCount) summary.push(`${missingCount} no longer found (❌)`);
+  if (missingCount) summary.push(`${missingCount} no longer found [D]`);
   out.push(
     `_${summary.join(" · ")}_`,
     "",

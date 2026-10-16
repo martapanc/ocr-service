@@ -95,7 +95,7 @@ yarn ig-comments <url> --tz UTC         # timestamp timezone (default: Europe/Ro
 
 It writes two files per post:
 
-- `<shortcode>.md`: the post caption, then each thread in chronological order with `@username`, date and likes, and replies nested underneath. Comments fetched in the latest run are marked 🆕. Saved comments that later disappear stay in the file and are marked ❌ "no longer found". That can mean deleted, hidden by the owner or a filter, or the author deactivated their account or restricted you. The mark clears if the comment comes back.
+- `<shortcode>.md`: the post caption, then each thread in chronological order with `@username`, date and likes, and replies nested underneath. Comments fetched in the latest run are marked `[N]`. Saved comments that later disappear stay in the file and are marked `[D]` "no longer found". That can mean deleted, hidden by the owner or a filter, or the author deactivated their account or restricted you. The mark clears if the comment comes back.
 - `<shortcode>.json`: the stored comments plus per-thread reply counts. Keep it: later runs read it and only fetch what's new.
 
 How incremental runs work: top-level comments are fetched newest first, and a thread's replies are re-fetched only when its reply count has changed. For posts with ≤500 comments, every run rescans all top-level comments, which is cheap and catches new replies under old comments. For larger posts, a run stops at the first page with nothing new. New replies under older comments are then only picked up with `--full`. The same goes for spotting removed top-level comments. Removed replies are caught whenever their thread's reply count drops.
